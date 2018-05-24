@@ -101,7 +101,7 @@ func Main() {
 			if len(row[i]) > widths[i] {
 				// truncate column
 				row[i] = row[i][0:widths[i]]
-				fmt.Fprintf(os.Stderr, "truncated to %q\n", row[i])
+				//fmt.Fprintf(os.Stderr, "truncated to %q\n", row[i])
 			}
 			columns[i] = fmt.Sprintf(format, row[i])
 		}
