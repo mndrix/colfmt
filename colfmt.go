@@ -178,12 +178,11 @@ func ParseColumnSpecs(specDescription string) (map[int]*ColumnSpec, error) {
 		}
 
 		// column width in characters like: 7c or 63c
-		if strings.HasSuffix(word, "c") {
-			width, err := strconv.Atoi(strings.TrimSuffix(word, "c"))
-			if err == nil {
-				spec.WidthMin = width
-				spec.WidthMax = width
-				continue
+		if width, ok := parseColumnWidth(word); ok {
+			spec.WidthMin = width
+			spec.WidthMax = width
+			continue
+		}
 			}
 		}
 
@@ -200,4 +199,18 @@ func ParseColumnSpecs(specDescription string) (map[int]*ColumnSpec, error) {
 	}
 
 	return specs, nil
+}
+
+// returns the width of a column specification, or -1 if the column
+// has an infinite width
+func parseColumnWidth(word string) (int, bool) {
+	// width in characters like: 7c or 42c
+	if strings.HasSuffix(word, "c") {
+		width, err := strconv.Atoi(strings.TrimSuffix(word, "c"))
+		if err == nil {
+			return width, true
+		}
+	}
+
+	return 0, false
 }
