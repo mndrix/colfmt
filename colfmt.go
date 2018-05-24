@@ -99,6 +99,9 @@ func Main() {
 	for _, row := range rows {
 		columns = columns[:0] // empty the slice, reusing same memory
 		for i, format := range formats {
+			if widths[i] == 0 { // skip zero-width columns
+				continue
+			}
 			if len(row[i]) > widths[i] {
 				// truncate column
 				row[i] = row[i][0:widths[i]]
