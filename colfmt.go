@@ -82,7 +82,7 @@ func Main() {
 		if width < spec.WidthMin {
 			widths[i] = spec.WidthMin
 		}
-		if width > spec.WidthMax {
+		if spec.WidthMax >= 0 && width > spec.WidthMax {
 			widths[i] = spec.WidthMax
 		}
 	}
