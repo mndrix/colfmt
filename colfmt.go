@@ -29,14 +29,24 @@ func (spec *ColumnSpec) HasFlexibleWidth() bool {
 	return false
 }
 
+var terminalWidth = 0
+
 func Main() {
 	var inputRecordSeparator byte = '\n'
 	var inputFieldSeparator byte = '\t'
 	outputRecordSeparator := "\n"
 	outputFieldSeparator := "  "
 
+	// how wide is the user's terminal?
+	if width, _, err := terminal.GetSize(int(os.Stdout.Fd())); err == nil {
+		terminalWidth = width
+	} else {
+		warn("Can't get terminal dimensions: %s", err)
+	}
+
 	// parse flags
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	fs.IntVar(&terminalWidth, "w", terminalWidth, "assume the terminal is this wide")
 	fs.Parse(os.Args[1:])
 
 	// parse column specification
@@ -256,12 +266,7 @@ func parseColumnWidth(word string) (int, bool) {
 // adjust widths to fit within a terminal's available horizontal space
 func rebalanceWidths(widths []int, specs map[int]*ColumnSpec) []int {
 	// how much horizontal space is available?
-	availableWidth := 0
-	if width, _, err := terminal.GetSize(int(os.Stdout.Fd())); err == nil {
-		availableWidth = width
-	} else {
-		warn("Can't get terminal dimensions: %s", err)
-	}
+	availableWidth := terminalWidth
 
 	// how much horizontal space have we consumed?
 	consumedWidth := 0
