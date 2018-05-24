@@ -34,8 +34,8 @@ func Main() {
 		die("parsing column spec: %s", err)
 	}
 	fmt.Fprintf(os.Stderr, "specs = ")
-	for _, spec := range specs {
-		fmt.Fprintf(os.Stderr, "%+v ", spec)
+	for i, spec := range specs {
+		fmt.Fprintf(os.Stderr, "%d: %+v ", i, spec)
 	}
 	fmt.Fprintf(os.Stderr, "\n")
 
