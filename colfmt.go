@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 type ColumnSpec struct {
@@ -16,6 +18,14 @@ type ColumnSpec struct {
 	// WidthMax is the maximum allowed width for this column.  -1
 	// means there is no maximum.
 	WidthMax int
+}
+
+func (spec *ColumnSpec) HasFlexibleWidth() bool {
+	if spec.WidthMax < 0 || spec.WidthMax > spec.WidthMin {
+		return true
+	}
+
+	return false
 }
 
 func Main() {
@@ -87,6 +97,8 @@ func Main() {
 		}
 	}
 	fmt.Fprintf(os.Stderr, "widths = %v\n", widths)
+	widths = rebalanceWidths(widths, specs)
+	fmt.Fprintf(os.Stderr, "rebalanced = %v\n", widths)
 
 	// create format strings
 	formats := make([]string, len(widths))
@@ -118,6 +130,10 @@ func Main() {
 func die(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
 	os.Exit(1)
+}
+
+func warn(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
 }
 
 func on(delimiter byte) bufio.SplitFunc {
@@ -183,6 +199,18 @@ func ParseColumnSpecs(specDescription string) (map[int]*ColumnSpec, error) {
 			spec.WidthMax = width
 			continue
 		}
+
+		// column width range like: 7c-20c or 10c-*
+		if bounds := strings.Split(word, "-"); len(bounds) == 2 {
+			warn("  width range: %v", bounds)
+			if lower, ok := parseColumnWidth(bounds[0]); ok {
+				warn("    lower = %d", lower)
+				if upper, ok := parseColumnWidth(bounds[1]); ok {
+					warn("    upper = %d", upper)
+					spec.WidthMin = lower
+					spec.WidthMax = upper
+					continue
+				}
 			}
 		}
 
@@ -212,5 +240,61 @@ func parseColumnWidth(word string) (int, bool) {
 		}
 	}
 
+	// unbounded width like: *
+	if word == "*" {
+		return -1, true
+	}
+
 	return 0, false
+}
+
+// adjust widths to fit within a terminal's available horizontal space
+func rebalanceWidths(widths []int, specs map[int]*ColumnSpec) []int {
+	// how much horizontal space is available?
+	availableWidth := 0
+	if width, _, err := terminal.GetSize(int(os.Stdout.Fd())); err == nil {
+		availableWidth = width
+	} else {
+		warn("Can't get terminal dimensions: %s", err)
+	}
+
+	// how much horizontal space have we consumed?
+	consumedWidth := 0
+	for i, width := range widths {
+		consumedWidth += width
+		if i > 0 {
+			consumedWidth += 2 // account for gutters
+		}
+	}
+
+	// which column widths can be adjusted?
+	adjustable := make(map[int]*ColumnSpec)
+	for i, spec := range specs {
+		if spec.HasFlexibleWidth() && widths[i] > spec.WidthMin {
+			adjustable[i] = spec
+		}
+	}
+
+	// reduce widths until everything fits in the space allowed
+	warn("rebalancing %d towards %d", consumedWidth, availableWidth)
+	for consumedWidth > availableWidth && len(adjustable) > 0 {
+		// find the widest adjustable column
+		widestIndex := 0
+		widestWidth := 0
+		for i := range adjustable {
+			if widths[i] > widestWidth {
+				widestIndex = i
+				widestWidth = widths[i]
+			}
+		}
+
+		// reduce its width by 1 character
+		widths[widestIndex]--
+		consumedWidth--
+		if widths[widestIndex] <= adjustable[widestIndex].WidthMin {
+			delete(adjustable, widestIndex)
+		}
+	}
+
+	return widths
 }
