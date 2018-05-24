@@ -2,6 +2,7 @@ package colfmt // import "github.com/mndrix/colfmt"
 import (
 	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -34,10 +35,14 @@ func Main() {
 	outputRecordSeparator := "\n"
 	outputFieldSeparator := "  "
 
+	// parse flags
+	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	fs.Parse(os.Args[1:])
+
 	// parse column specification
 	rawSpec := ""
-	if len(os.Args) > 1 {
-		rawSpec = os.Args[1]
+	if args := fs.Args(); len(args) > 1 {
+		rawSpec = args[1]
 	}
 	specs, err := ParseColumnSpecs(rawSpec)
 	if err != nil {
