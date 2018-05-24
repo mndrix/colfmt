@@ -74,11 +74,11 @@ func Main() {
 
 	// adjust column widths based on specs
 	for i, width := range widths {
-		if i >= len(specs) || specs[i] == nil {
+		spec, ok := specs[i+1]
+		if !ok {
 			continue
 		}
 
-		spec := specs[i]
 		if width < spec.WidthMin {
 			widths[i] = spec.WidthMin
 		}
@@ -141,7 +141,7 @@ func on(delimiter byte) bufio.SplitFunc {
 	}
 }
 
-func ParseColumnSpecs(specDescription string) ([]*ColumnSpec, error) {
+func ParseColumnSpecs(specDescription string) (map[int]*ColumnSpec, error) {
 	// map column number to the associated spec
 	specs := make(map[int]*ColumnSpec)
 	maxColumn := 0
@@ -199,9 +199,5 @@ func ParseColumnSpecs(specDescription string) ([]*ColumnSpec, error) {
 		return nil, err
 	}
 
-	allSpecs := make([]*ColumnSpec, maxColumn)
-	for n, spec := range specs {
-		allSpecs[n-1] = spec
-	}
-	return allSpecs, nil
+	return specs, nil
 }
