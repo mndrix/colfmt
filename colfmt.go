@@ -51,8 +51,8 @@ func Main() {
 
 	// parse column specification
 	rawSpec := ""
-	if args := fs.Args(); len(args) > 1 {
-		rawSpec = args[1]
+	if args := fs.Args(); len(args) > 0 {
+		rawSpec = args[0]
 	}
 	specs, err := ParseColumnSpecs(rawSpec)
 	if err != nil {
