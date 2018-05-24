@@ -95,15 +95,16 @@ func Main() {
 	}
 
 	// output formatted data
-	columns := make([]string, len(widths))
+	columns := make([]string, 0, len(widths))
 	for _, row := range rows {
+		columns = columns[:0] // empty the slice, reusing same memory
 		for i, format := range formats {
 			if len(row[i]) > widths[i] {
 				// truncate column
 				row[i] = row[i][0:widths[i]]
 				//fmt.Fprintf(os.Stderr, "truncated to %q\n", row[i])
 			}
-			columns[i] = fmt.Sprintf(format, row[i])
+			columns = append(columns, fmt.Sprintf(format, row[i]))
 		}
 		line := strings.Join(columns, outputFieldSeparator)
 		io.WriteString(os.Stdout, line)
