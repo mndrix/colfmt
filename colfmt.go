@@ -30,6 +30,7 @@ func (spec *ColumnSpec) HasFlexibleWidth() bool {
 }
 
 var terminalWidth = 0
+var isDebug = false
 
 func Main() {
 	var inputRecordSeparator byte = '\n'
@@ -41,11 +42,12 @@ func Main() {
 	if width, _, err := terminal.GetSize(int(os.Stdout.Fd())); err == nil {
 		terminalWidth = width
 	} else {
-		warn("Can't get terminal dimensions: %s", err)
+		debug("Can't get terminal dimensions: %s", err)
 	}
 
 	// parse flags
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	fs.BoolVar(&isDebug, "D", false, "send debug messages to stderr")
 	fs.IntVar(&terminalWidth, "w", terminalWidth, "assume the terminal is this wide")
 	fs.Parse(os.Args[1:])
 
@@ -58,11 +60,13 @@ func Main() {
 	if err != nil {
 		die("parsing column spec: %s", err)
 	}
-	fmt.Fprintf(os.Stderr, "specs = ")
-	for i, spec := range specs {
-		fmt.Fprintf(os.Stderr, "%d: %+v ", i, spec)
-	}
-	fmt.Fprintf(os.Stderr, "\n")
+	/*
+		fmt.Fprintf(os.Stderr, "specs = ")
+		for i, spec := range specs {
+			fmt.Fprintf(os.Stderr, "%d: %+v ", i, spec)
+		}
+		fmt.Fprintf(os.Stderr, "\n")
+	*/
 
 	// collect rows
 	var rows [][]string
@@ -111,9 +115,9 @@ func Main() {
 			widths[i] = spec.WidthMax
 		}
 	}
-	fmt.Fprintf(os.Stderr, "widths = %v\n", widths)
+	debug("widths = %v", widths)
 	widths = rebalanceWidths(widths, specs)
-	fmt.Fprintf(os.Stderr, "rebalanced = %v\n", widths)
+	debug("rebalanced = %v", widths)
 
 	// create format strings
 	formats := make([]string, len(widths))
@@ -149,6 +153,12 @@ func die(format string, args ...interface{}) {
 
 func warn(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
+}
+
+func debug(format string, args ...interface{}) {
+	if isDebug {
+		fmt.Fprintf(os.Stderr, format+"\n", args...)
+	}
 }
 
 func on(delimiter byte) bufio.SplitFunc {
@@ -189,11 +199,11 @@ func ParseColumnSpecs(specDescription string) (map[int]*ColumnSpec, error) {
 		}
 
 		word := scan.Text()
-		fmt.Fprintf(os.Stderr, "parsing %q\n", word)
+		debug("parsing %q", word)
 		if strings.HasSuffix(word, ";") {
 			needNewSpec = true
 			word = strings.TrimSuffix(word, ";")
-			fmt.Fprintf(os.Stderr, "  now %q\n", word)
+			debug("  now %q", word)
 		}
 
 		// column number like: 6 or 1 or 999
@@ -217,11 +227,11 @@ func ParseColumnSpecs(specDescription string) (map[int]*ColumnSpec, error) {
 
 		// column width range like: 7c-20c or 10c-*
 		if bounds := strings.Split(word, "-"); len(bounds) == 2 {
-			warn("  width range: %v", bounds)
+			debug("  width range: %v", bounds)
 			if lower, ok := parseColumnWidth(bounds[0]); ok {
-				warn("    lower = %d", lower)
+				debug("    lower = %d", lower)
 				if upper, ok := parseColumnWidth(bounds[1]); ok {
-					warn("    upper = %d", upper)
+					debug("    upper = %d", upper)
 					spec.WidthMin = lower
 					spec.WidthMax = upper
 					continue
@@ -286,7 +296,7 @@ func rebalanceWidths(widths []int, specs map[int]*ColumnSpec) []int {
 	}
 
 	// reduce widths until everything fits in the space allowed
-	warn("rebalancing %d towards %d", consumedWidth, availableWidth)
+	debug("rebalancing %d towards %d", consumedWidth, availableWidth)
 	for consumedWidth > availableWidth && len(adjustable) > 0 {
 		// find the widest adjustable column
 		widestIndex := 0
