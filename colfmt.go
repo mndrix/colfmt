@@ -74,7 +74,7 @@ func Main() {
 
 	// adjust column widths based on specs
 	for i, width := range widths {
-		spec, ok := specs[i+1]
+		spec, ok := specs[i]
 		if !ok {
 			continue
 		}
@@ -170,7 +170,7 @@ func ParseColumnSpecs(specDescription string) (map[int]*ColumnSpec, error) {
 			if n < 1 {
 				return nil, fmt.Errorf("invalid column number: %d", n)
 			}
-			specs[n] = spec
+			specs[n-1] = spec
 			if n > maxColumn {
 				maxColumn = n
 			}
