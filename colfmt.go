@@ -2,17 +2,29 @@ package colfmt // import "github.com/mndrix/colfmt"
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+type ColumnType int
+
+const (
+	TypeString ColumnType = iota
+	TypeAge
+)
+
 type ColumnSpec struct {
+	// Type indicates the kind of data stored in this column.
+	Type ColumnType
+
 	// WidthMin is the minimum allowed width for this column.
 	WidthMin int
 
@@ -78,6 +90,13 @@ func Main() {
 		strs := make([]string, len(columns))
 		for i, column := range columns {
 			strs[i] = string(column) // copy, since scanner reuses byte array
+			if spec, ok := specs[i]; ok && spec.Type == TypeAge {
+				original := strs[i]
+				strs[i], err = renderAge(original)
+				if err != nil {
+					warn("Unexpected date format: %q", original)
+				}
+			}
 		}
 		rows = append(rows, strs)
 	}
@@ -243,6 +262,8 @@ func ParseColumnSpecs(specDescription string) (map[int]*ColumnSpec, error) {
 		switch word {
 		case ";":
 			needNewSpec = true
+		case "age":
+			spec.Type = TypeAge
 		default:
 			return nil, fmt.Errorf("unexpected token: %s", word)
 		}
@@ -271,6 +292,47 @@ func parseColumnWidth(word string) (int, bool) {
 	}
 
 	return 0, false
+}
+
+var timeLayouts = []string{
+	time.ANSIC,
+	time.RFC1123,
+	time.RFC1123Z,
+	time.RFC3339,
+	time.RFC3339Nano,
+	time.RFC822,
+	time.RFC822Z,
+	time.RFC850,
+	time.RubyDate,
+	time.UnixDate,
+}
+
+// tries to render a given string as an age column.  if there's an
+// error, returns the original string
+func renderAge(s string) (string, error) {
+	for _, layout := range timeLayouts {
+		t, err := time.Parse(layout, s)
+		if err == nil {
+			d := time.Since(t)
+			if seconds := d.Seconds(); seconds < 90 {
+				return fmt.Sprintf("%ds", int(seconds)), nil
+			}
+			if minutes := d.Minutes(); minutes < 90 {
+				return fmt.Sprintf("%dm", int(minutes)), nil
+			}
+			if hours := d.Hours(); hours < 24 {
+				return fmt.Sprintf("%dh", int(hours)), nil
+			}
+			if days := d.Hours() / 24; days < 30 {
+				return fmt.Sprintf("%dd", int(days)), nil
+			}
+			if months := d.Hours() / 24 / 30; months < 12 {
+				return fmt.Sprintf("%dM", int(months)), nil
+			}
+			return strconv.Itoa(t.Year()), nil
+		}
+	}
+	return s, errors.New("can't parse as a time: " + s)
 }
 
 // adjust widths to fit within a terminal's available horizontal space
