@@ -14,6 +14,13 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+type Alignment int
+
+const (
+	AlignLeft Alignment = iota
+	AlignRight
+)
+
 type ColumnType int
 
 const (
@@ -22,6 +29,9 @@ const (
 )
 
 type ColumnSpec struct {
+	// Align indicates how text inside this column should be aligned
+	Align Alignment
+
 	// Type indicates the kind of data stored in this column.
 	Type ColumnType
 
@@ -141,7 +151,11 @@ func Main() {
 	// create format strings
 	formats := make([]string, len(widths))
 	for i, width := range widths {
-		formats[i] = "%-" + strconv.Itoa(width) + "s"
+		alignment := "-"
+		if spec, ok := specs[i]; ok && spec.Align == AlignRight {
+			alignment = ""
+		}
+		formats[i] = "%" + alignment + strconv.Itoa(width) + "s"
 	}
 
 	// output formatted data
@@ -264,6 +278,10 @@ func ParseColumnSpecs(specDescription string) (map[int]*ColumnSpec, error) {
 			needNewSpec = true
 		case "age":
 			spec.Type = TypeAge
+		case "left":
+			spec.Align = AlignLeft
+		case "right":
+			spec.Align = AlignRight
 		default:
 			return nil, fmt.Errorf("unexpected token: %s", word)
 		}
